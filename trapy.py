@@ -1,12 +1,12 @@
 #!usr/bin/python
-# trapy - v0.1.3
+# trapy - v0.1.5
 # "The API that wasn't"
 # Written by mini-man
 
 from ClientCookie   import urlopen
 from ClientForm     import ParseResponse
 from BeautifulSoup  import BeautifulSoup
-from re             import compile
+from re             import compile, sub
 
 def info(msg, type=1):
     if type == 1:   # info
@@ -18,6 +18,9 @@ def info(msg, type=1):
 def geterr():
     import sys
     return str(sys.exc_info()[:2][1])
+
+def stripent(string):
+    return sub('&.*?;', '', string)
 
 class LoginError(Exception):
 
@@ -85,10 +88,13 @@ class World:
 
     def __init__(self, connection):
         if connection:
+            info('Grabbing village data...')
             self.conn     = connection
             self.overview = BeautifulSoup(connection.navigate('dorf1.php').read())
+            self.village  = BeautifulSoup(connection.navigate('dorf2.php').read())
             self.villages = []
             self.get_villages()
+            info('Done. %d villages found.' % len(self.villages))
         else:
             info('Pass me a trapy.Connection object pl0x!', 2)
     
@@ -115,9 +121,14 @@ class World:
                     match = v
         if match:
             info('Navigating to village ' + match[1] + '...')
-            return self.conn.navigate('dorf2.php' + match[0])
+            self.village = BeautifulSoup(self.conn.navigate('dorf2.php' + match[0]))
+            return self.village
         else:
             info('No village found.', 2)
             return False
-
-    
+            
+    def get_resources(self, village):
+        if not self.villages: self.get_villages()
+        if self.goto_village(village):
+            res = self.village.findAll(text=compile('(\d+)/(\d+)'))[:-1]
+            return [[int(x) for x in r.split('/')] for r in res]
