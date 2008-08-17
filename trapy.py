@@ -6,6 +6,7 @@
 from ClientCookie   import urlopen
 from ClientForm     import ParseResponse
 from BeautifulSoup  import BeautifulSoup
+from re             import compile
 
 def info(msg, type=1):
     if type == 1:   # info
@@ -88,14 +89,14 @@ class World:
             self.overview = BeautifulSoup(connection.navigate('dorf1.php').read())
             self.villages = []
             self.get_villages()
-         else:
+        else:
             info('Pass me a trapy.Connection object pl0x!', 2)
     
     def get_villages(self):
         if not self.villages:
             self.villages = [
                 (a['href'], a.contents[0]) for a in \
-                self.overview.find('span', text='Villages:').findAllNext('a') \
+                 self.overview.findAll(href=compile('\?newdid=\d+'))
             ]
         return self.villages
     
@@ -118,4 +119,5 @@ class World:
         else:
             info('No village found.', 2)
             return False
+
     
