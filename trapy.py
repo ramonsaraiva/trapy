@@ -8,12 +8,15 @@ from ClientForm     import ParseResponse
 from BeautifulSoup  import BeautifulSoup
 from re             import compile, sub
 
+SILENT = 0
+
 def info(msg, type=1):
-    if type == 1:   # info
-        x = "[>]"
-    elif type == 2: # error
-        x = "[!]"
-    print x, msg
+    if not SILENT:
+        if type == 1:   # info
+            x = "[>]"
+        elif type == 2: # error
+            x = "[!]"
+        print x, msg
 
 def geterr():
     import sys
@@ -32,7 +35,10 @@ class LoginError(Exception):
 
 class Connection:
     
-    def __init__(self, server, tld, username, password):
+    def __init__(self, server, tld, username, password, silent=0):
+        if silent:
+            global SILENT
+            SILENT    = 1
         self.server   = server
         self.tld      = tld
         self.username = username
@@ -130,5 +136,15 @@ class World:
     def get_resources(self, village):
         if not self.villages: self.get_villages()
         if self.goto_village(village):
-            res = self.village.findAll(text=compile('(\d+)/(\d+)'))[:-1]
+            res = self.village.findAll(text=compile('\d+/\d+'))[:-1]
             return [[int(x) for x in r.split('/')] for r in res]
+        else:
+            return False
+
+    def get_population(self, village):
+        if not self.villages: self.get_villages()
+        if self.goto_village(village):
+            pop = self.village.findAll(text=compile('&nbsp;\d+/\d+'))
+            return [int(stripent(p)) for p in pop[0].split('/')]
+        else:
+            return False
