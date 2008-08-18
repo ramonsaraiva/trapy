@@ -98,6 +98,7 @@ class World:
             self.conn     = connection
             self.overview = BeautifulSoup(connection.navigate('dorf1.php').read())
             self.village  = BeautifulSoup(connection.navigate('dorf2.php').read())
+            self.stats    = BeautifulSoup(connection.navigate('statistiken.php').read())
             self.villages = []
             self.get_villages()
             info('Done. %d villages found.' % len(self.villages))
@@ -106,10 +107,22 @@ class World:
     
     def get_villages(self):
         if not self.villages:
-            self.villages = [
-                (a['href'], a.contents[0]) for a in \
-                 self.overview.findAll(href=compile('\?newdid=\d+'))
-            ]
+            profurl  = self.stats.find('a', text=self.conn.username).parent['href']
+            profile  = BeautifulSoup(self.conn.navigate(profurl))
+            villages = profile.findAll(href=compile('\?newdid=\d+'))
+            
+            for a in villages:
+                v = [a['href'], a.contents[0]]
+                if a.has_key('class'):
+                    v.append('Capital')
+                self.villages.append(v)
+        
+        info('Your villages: ')
+        for v in self.villages:
+            print '--->', v[1], 
+            if len(v) == 3:
+                print '(Capital)',
+            print
         return self.villages
     
     def goto_village(self, village):
