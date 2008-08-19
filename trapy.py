@@ -1,5 +1,5 @@
 #!usr/bin/python
-# trapy - v0.1.5
+# trapy - v0.1.10
 # "The API that wasn't"
 # Written by mini-man
 
@@ -43,7 +43,7 @@ class Connection:
         self.tld      = tld
         self.username = username
         self.password = password
-        self.baseurl  = 'http://s%d.travian.%s/' % (server, tld)
+        self.baseurl  = 'http://%s.travian.%s/' % (server, tld)
         self.loggedin = self.login()
 
     def navigate(self, url):
@@ -147,15 +147,20 @@ class World:
             return False
             
     def get_resources(self, village):
-        if not self.villages: self.get_villages()
         if self.goto_village(village):
             res = self.village.findAll(text=compile('\d+/\d+'))[:-1]
             return [[int(x) for x in r.split('/')] for r in res]
         else:
             return False
+    
+    def get_production(self, village):
+        if self.goto_village(village):
+            pro = self.overview.findAll('b', text=compile('\d+&nbsp;'))
+            return [int(p[:-6]) for p in pro]
+        else:
+            return False
 
     def get_population(self, village):
-        if not self.villages: self.get_villages()
         if self.goto_village(village):
             pop = self.village.findAll(text=compile('&nbsp;\d+/\d+'))
             return [int(stripent(p)) for p in pop[0].split('/')]
