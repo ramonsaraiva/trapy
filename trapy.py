@@ -1,5 +1,5 @@
 #!usr/bin/python
-# trapy - v0.1.10
+# trapy - v0.1.12
 # "The API that wasn't"
 # Written by mini-man
 
@@ -164,5 +164,15 @@ class World:
         if self.goto_village(village):
             pop = self.village.findAll(text=compile('&nbsp;\d+/\d+'))
             return [int(stripent(p)) for p in pop[0].split('/')]
+        else:
+            return False
+            
+    def get_troops(self, village):
+        if self.goto_village(village):
+            trtable = self.overview.find(text=compile('Troops:$')).findNext('table')
+            troops  = [
+                (t, t.findNext('td').contents[0]) for t in trtable.findAll(text=compile('\d+'))
+            ]
+            return troops
         else:
             return False
