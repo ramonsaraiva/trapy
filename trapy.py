@@ -66,7 +66,7 @@ class Connection:
     
     def login(self):
         try:
-            info("Logging into s%s.travian.%s as %s..." %
+            info("Logging into %s.travian.%s as %s..." %
                 (self.server, self.tld, self.username))
 
             soup   = BeautifulSoup(self.navigate(''))
@@ -96,10 +96,15 @@ class World:
         if connection:
             info('Grabbing village data...')
             self.conn     = connection
-            self.overview = BeautifulSoup(connection.navigate('dorf1.php').read())
-            self.village  = BeautifulSoup(connection.navigate('dorf2.php').read())
-            self.stats    = BeautifulSoup(connection.navigate('statistiken.php').read())
+            self.navigate = connection.navigate
+            
+            self.overview = BeautifulSoup(self.navigate('dorf1.php').read())
+            self.village  = BeautifulSoup(self.navigate('dorf2.php').read())
+            self.stats    = BeautifulSoup(self.navigate('statistiken.php').read())
+            self.profurl  = self.stats.find('a', text=self.conn.username).parent['href']
+            self.profile  = BeautifulSoup(self.navigate(self.profurl))
             self.villages = []
+            
             self.get_villages()
             info('Done. %d villages found.' % len(self.villages))
         else:
@@ -107,9 +112,7 @@ class World:
     
     def get_villages(self):
         if not self.villages:
-            profurl  = self.stats.find('a', text=self.conn.username).parent['href']
-            profile  = BeautifulSoup(self.conn.navigate(profurl))
-            villages = profile.findAll(href=compile('\?newdid=\d+'))
+            villages = self.profile.findAll(href=compile('\?newdid=\d+'))
             
             for a in villages:
                 v = [a['href'], a.contents[0]]
@@ -140,7 +143,8 @@ class World:
                     match = v
         if match:
             info('Navigating to village ' + match[1] + '...')
-            self.village = BeautifulSoup(self.conn.navigate('dorf2.php' + match[0]))
+            self.overview = BeautifulSoup(self.navigate('dorf1.php' + match[0]))
+            self.village = BeautifulSoup(self.navigate('dorf2.php' + match[0]))
             return self.village
         else:
             info('No village found.', 2)
@@ -160,12 +164,16 @@ class World:
         else:
             return False
 
-    def get_population(self, village):
-        if self.goto_village(village):
-            pop = self.village.findAll(text=compile('&nbsp;\d+/\d+'))
-            return [int(stripent(p)) for p in pop[0].split('/')]
+    def get_population(self, village='all'):
+        if village.lower() == 'all':
+            pop = int(self.profile.find(text='Population:').findNext('td').contents[0])
         else:
-            return False
+            if self.goto_village(village):
+                name = self.village.find('a', 'active_vl').contents[0]
+                pop  = int(self.profile.find(text=name).findNext('td').contents[0])
+            else:
+                pop  = False
+        return pop
             
     def get_troops(self, village):
         if self.goto_village(village):
