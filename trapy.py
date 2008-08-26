@@ -1,12 +1,13 @@
 #!usr/bin/python
-# trapy - v0.1.12
+# trapy - v0.1.13
 # "The API that wasn't"
 # Written by mini-man
 
 from ClientCookie   import urlopen
 from ClientForm     import ParseResponse
 from BeautifulSoup  import BeautifulSoup
-from re             import compile, sub
+from re             import compile, sub, match
+from getpass        import getpass
 
 SILENT = 0
 
@@ -35,13 +36,16 @@ class LoginError(Exception):
 
 class Connection:
     
-    def __init__(self, server, tld, username, password, silent=0):
+    def __init__(self, server, tld, username, password=None, silent=0):
         if silent:
             global SILENT
             SILENT    = 1
         self.server   = server
         self.tld      = tld
         self.username = username
+        
+        if not password:
+            password  = getpass('[>] Enter your Travian password: ')
         self.password = password
         self.baseurl  = 'http://%s.travian.%s/' % (server, tld)
         self.loggedin = self.login()
@@ -144,11 +148,28 @@ class World:
         if match:
             info('Navigating to village ' + match[1] + '...')
             self.overview = BeautifulSoup(self.navigate('dorf1.php' + match[0]))
-            self.village = BeautifulSoup(self.navigate('dorf2.php' + match[0]))
+            self.village  = BeautifulSoup(self.navigate('dorf2.php' + match[0]))
             return self.village
         else:
             info('No village found.', 2)
             return False
+    
+    def get_fields(self, village):
+        if self.goto_village(village):
+            wood = self.overview.findAll(title=compile('Wood.+'))
+            clay = self.overview.findAll(title=compile('Clay.+'))
+            iron = self.overview.findAll(title=compile('Iron.+'))
+            crop = self.overview.findAll(title=compile('Cropl.+'))
+
+            def get_level(fieldset):
+                return int(match('.*?(\d*)$', fieldset).group(1))
+            
+            wood = [get_level(f['title']) for f in wood]
+            clay = [get_level(f['title']) for f in clay]
+            iron = [get_level(f['title']) for f in iron]
+            crop = [get_level(f['title']) for f in crop]
+
+            return [wood, clay, iron, crop]
             
     def get_resources(self, village):
         if self.goto_village(village):
