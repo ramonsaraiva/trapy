@@ -8,6 +8,7 @@ from ClientForm     import ParseResponse
 from BeautifulSoup  import BeautifulSoup
 from re             import compile, sub, match
 from getpass        import getpass
+from sys            import stdout, stderr
 
 SILENT = 0
 
@@ -15,9 +16,11 @@ def info(msg, type=1):
     if not SILENT:
         if type == 1:   # info
             x = "[>]"
+            p = stdout.write
         elif type == 2: # error
             x = "[!]"
-        print x, msg
+            p = stderr.write
+        p('%s %s\n' % (x, msg))
 
 def geterr():
     import sys
@@ -170,20 +173,19 @@ class World:
             crop = [get_level(f['title']) for f in crop]
 
             return [wood, clay, iron, crop]
+        return False
             
     def get_resources(self, village):
         if self.goto_village(village):
             res = self.village.findAll(text=compile('\d+/\d+'))[:-1]
             return [[int(x) for x in r.split('/')] for r in res]
-        else:
-            return False
+        return False
     
     def get_production(self, village):
         if self.goto_village(village):
             pro = self.overview.findAll('b', text=compile('\d+&nbsp;'))
             return [int(p[:-6]) for p in pro]
-        else:
-            return False
+        return False
 
     def get_population(self, village='all'):
         if village.lower() == 'all':
@@ -191,17 +193,43 @@ class World:
         else:
             if self.goto_village(village):
                 name = self.village.find('a', 'active_vl').contents[0]
-                pop  = int(self.profile.find(text=name).findNext('td').contents[0])
-            else:
-                pop  = False
-        return pop
+                return int(self.profile.find(text=name).findNext('td').contents[0])
+        return False
             
     def get_troops(self, village):
         if self.goto_village(village):
             trtable = self.overview.find(text=compile('Troops:$')).findNext('table')
-            troops  = [
+            return [
                 (t, t.findNext('td').contents[0]) for t in trtable.findAll(text=compile('\d+'))
             ]
-            return troops
-        else:
-            return False
+        return False
+            
+    def get_hero(self, village):
+        if self.goto_village(village):
+            mansion = self.village.find(title=compile('Hero'))
+            if mansion:
+                soup  = BeautifulSoup(self.navigate(mansion['href']).read())
+                namet = soup.find('span', 'c0')
+                name  = namet.contents[0]
+                level = int(namet.parent.parent.contents[1].strip()[6:])
+                
+                offense = int(soup.find('td', width=75).contents[0])
+                defense = [
+                    int(x) for x in 
+                    soup.find('td', 's7', text=compile('\d+/\d+')).split('/')
+                ]
+                bonus    = soup.findAll('td', 's7', text=compile('\d+%'))
+                offbonus = float(bonus[0][:-1])
+                defbonus = float(bonus[1][:-1])
+                regen    = int(soup.find('td', 's7', text=compile('\d+/Day'))[:-4])
+                exp      = int(bonus[2][:-1])
+                
+                # Yes, I know this is ugly...
+                health   = int(soup.find('p', text=compile('Your hero has'))
+                                .parent.contents[1].contents[0])
+                return [name, level, offense, 
+                         defense, offbonus, defbonus, 
+                         regen, exp, health]
+            else:
+                info("No hero's mansion exists in this village!", 2)
+        return False
